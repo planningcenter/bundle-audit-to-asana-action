@@ -1,0 +1,77 @@
+name: "Send Bundler Audit Failures to Asana"
+description: "Runs `bundle-audit` and creates Asana tasks on failure."
+
+inputs:
+  asana_token:
+    description: "Asana Personal Access Token"
+    required: true
+  asana_project_id:
+    description: "Asana project ID for task creation"
+    required: true
+  asana_section_id:
+    description: "Asana section ID for task creation"
+    required: true
+
+runs:
+  using: "composite"
+  steps:
+    - name: Run Bundle Audit
+      uses: planningcenter/bundle-audit-action@v1
+      id: bundle_audit
+
+    - name: Exit if No Vulnerabilities Found
+      if: ${{ steps.bundle_audit.outputs.has_vulnerabilities == 'false' }}
+      run: |
+        echo "No vulnerabilities found. Exiting workflow."
+        exit 0
+      shell: bash
+
+    - name: Save Audit Output to File
+      run: |
+        jq -r . <<EOF > audit_output.txt
+        ${{ steps.bundle_audit.outputs.audit_output }}
+        EOF
+      shell: bash
+
+    - name: Split Vulnerabilities
+      run: |
+        cat audit_output.txt
+        awk '/^Name:/,/^Solution:/' audit_output.txt | csplit -f vuln - '/^Name:/' '{*}' > /dev/null || true
+        find . -name 'vuln*' -size 0 -delete
+      shell: bash
+
+    - name: Process Vulnerabilities and Create Asana Tasks
+      env:
+        ASANA_TOKEN: ${{ inputs.asana_token }}
+        ASANA_PROJECT_ID: ${{ inputs.asana_project_id }}
+        ASANA_SECTION_ID: ${{ inputs.asana_section_id }}
+      run: |
+        all_tasks=$(curl -s -G "https://app.asana.com/api/1.0/tasks" \
+          -H "Authorization: Bearer $ASANA_TOKEN" \
+          --data-urlencode "project=$ASANA_PROJECT_ID" \
+          --data-urlencode "opt_fields=name")
+
+        for vuln_file in vuln*; do
+          vulnerable_gem=$(awk '/^Name:/ {print $2; exit}' "$vuln_file")
+          full_output=$(cat "$vuln_file")
+
+          if echo "$all_tasks" | grep -q "Audit failure: $vulnerable_gem"; then
+            echo "Task for $vulnerable_gem already exists. Skipping."
+            continue
+          fi
+
+          payload=$(jq -n \
+            --arg name "Audit failure: $vulnerable_gem" \
+            --arg html_notes "<body><pre>$full_output</pre></body>" \
+            --arg project "$ASANA_PROJECT_ID" \
+            --arg section "$ASANA_SECTION_ID" \
+            '{data: {name: $name, html_notes: $html_notes, projects: [$project], memberships: [{project: $project, section: $section}]}}')
+
+          curl -X POST "https://app.asana.com/api/1.0/tasks" \
+            -H "Authorization: Bearer $ASANA_TOKEN" \
+            -H "Content-Type: application/json" \
+            -d "$payload"
+
+          echo "Created Asana task for $vulnerable_gem"
+        done
+      shell: bash
