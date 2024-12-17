@@ -29,6 +29,6 @@ jobs:
 
 | Name | Description | Required |
 |:-:|:-:|:-:|
-| `asana_token` | An Asana Personal Access Token | yes |
+| `asana_token` | An Asana Personal Access Token (generate one [here](https://app.asana.com/0/my-apps)) | yes |
 | `asana_project_id` | The project ID of the Asana Project | yes |
 | `asana_section_id` | The section ID of the section in the Asana Project | yes |
