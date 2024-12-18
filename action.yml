@@ -22,11 +22,11 @@ runs:
     - name: Exit if No Vulnerabilities Found
       if: ${{ steps.bundle_audit.outputs.has_vulnerabilities == 'false' }}
       run: |
-        echo "No vulnerabilities found. Exiting workflow."
-        exit 0
+        echo "No vulnerabilities found."
       shell: bash
 
     - name: Save Audit Output to File
+      if: ${{ steps.bundle_audit.outputs.has_vulnerabilities == 'true' }}
       run: |
         jq -r . <<EOF > audit_output.txt
         ${{ steps.bundle_audit.outputs.audit_output }}
@@ -34,6 +34,7 @@ runs:
       shell: bash
 
     - name: Split Vulnerabilities
+      if: ${{ steps.bundle_audit.outputs.has_vulnerabilities == 'true' }}
       run: |
         cat audit_output.txt
         awk '/^Name:/,/^Solution:/' audit_output.txt | csplit -f vuln - '/^Name:/' '{*}' > /dev/null || true
@@ -41,6 +42,7 @@ runs:
       shell: bash
 
     - name: Process Vulnerabilities and Create Asana Tasks
+      if: ${{ steps.bundle_audit.outputs.has_vulnerabilities == 'true' }}
       env:
         ASANA_TOKEN: ${{ inputs.asana_token }}
         ASANA_PROJECT_ID: ${{ inputs.asana_project_id }}
