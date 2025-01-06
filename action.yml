@@ -11,6 +11,10 @@ inputs:
   asana_section_id:
     description: "Asana section ID for task creation"
     required: true
+  ignore_list:
+    description: "Space-separated list of CVEs to ignore (e.g., CVE-2023-26141 CVE-2021-41182 CVE-2021-41183)"
+    required: false
+    default: ""
 
 runs:
   using: "composite"
@@ -18,6 +22,8 @@ runs:
     - name: Run Bundle Audit
       uses: planningcenter/bundle-audit-action@v1
       id: bundle_audit
+      with:
+        ignore_list: ${{ inputs.ignore_list }}
 
     - name: Exit if No Vulnerabilities Found
       if: ${{ steps.bundle_audit.outputs.has_vulnerabilities == 'false' }}
