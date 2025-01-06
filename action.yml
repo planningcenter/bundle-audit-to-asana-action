@@ -16,7 +16,7 @@ runs:
   using: "composite"
   steps:
     - name: Run Bundle Audit
-      uses: planningcenter/bundle-audit-action@v1.1.1-rc
+      uses: planningcenter/bundle-audit-action@v1.1.1-rc.1
       id: bundle_audit
 
     - name: Exit if No Vulnerabilities Found
