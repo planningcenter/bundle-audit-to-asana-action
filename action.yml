@@ -51,6 +51,7 @@ runs:
         all_tasks=$(curl -s -G "https://app.asana.com/api/1.0/tasks" \
           -H "Authorization: Bearer $ASANA_TOKEN" \
           --data-urlencode "project=$ASANA_PROJECT_ID" \
+          --data-urlencode "completed_since=now" \
           --data-urlencode "opt_fields=name")
 
         for vuln_file in vuln*; do
